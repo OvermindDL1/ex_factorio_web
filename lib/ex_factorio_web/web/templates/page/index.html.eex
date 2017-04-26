@@ -1,0 +1,33 @@
+<div class="jumbotron">
+  <h2><%= gettext "Welcome to %{name}!", name: "ExFactorioWeb" %></h2>
+  <p class="lead">A testing site for various<br />Factorio API testing</p>
+</div>
+
+<div class="row marketing">
+  <div class="col-lg-6">
+    <h4>Resources</h4>
+    <ul>
+      <li>
+        <a href="http://factorio.com/">Official Factorio Homepage</a>
+      </li>
+      <li>
+        <a href="https://api.factorio.com/">Official Factorio API Docs</a>
+      </li>
+      <li>
+        <a href="https://mods.factorio.com/">Official Factorio Mods</a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="col-lg-6">
+    <h4>Help</h4>
+    <ul>
+      <li>
+        <a href="http://webchat.esper.net/?channels=factorio">#factorio on esper IRC</a>
+      </li>
+      <li>
+        <a href="<%= page_path @conn, :blueprint_parser %>">Blueprint Parser</a>
+      </li>
+    </ul>
+  </div>
+</div>

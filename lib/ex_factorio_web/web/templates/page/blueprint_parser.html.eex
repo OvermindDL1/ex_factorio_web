@@ -1,0 +1,87 @@
+<%= form_tag(page_path(@conn, :blueprint_parser), method: :post, csrf_token: true, enforce_utf8: true, multipart: false) %>
+  <textarea name="blueprint-string" placeholder="Put blueprint string here..." rows="9" type="text" style="width:100%;" ><%= @blueprint_string %></textarea>
+  <button type="submit">Submit</button>
+  <button type="submit" name="example-blueprint">Example Blueprint</button>
+</form>
+
+<%= if @blueprint_data do %>
+<h3>Raw Data</h3>
+<div style="max-height:256px;overflow-y:scroll;width:100%;">
+  <pre>
+    <%= Poison.encode_to_iodata!(@blueprint_data, html_safe: true, pretty: true) %>
+  </pre>
+</div>
+<br />
+<% end %>
+
+<%= if @blueprint_icons do %>
+<h3>Icons</h3>
+<div style="max-height:256px;overflow-y:scroll;width:100%;">
+  <pre>
+    <%= Poison.encode_to_iodata!(@blueprint_icons, html_safe: true, pretty: true) %>
+  </pre>
+</div>
+<br />
+<% end %>
+
+<%= if @blueprint_entities do %>
+<h3>Entities</h3>
+<div style="max-height:256px;overflow-y:scroll;width:100%;">
+  <pre>
+    <%= Poison.encode_to_iodata!(@blueprint_entities, html_safe: true, pretty: true) %>
+  </pre>
+</div>
+<%
+{minX, minY, maxX, maxY} =
+  Enum.reduce(@blueprint_entities, {0, 0, 0, 0}, fn({_, %{position: %{x: x, y: y}}}, {minX, minY, maxX, maxY}) ->
+    minX = if(x<minX, do: x, else: minX)
+    minY = if(y<minY, do: y, else: minY)
+    maxX = if(x>maxX, do: x, else: maxX)
+    maxY = if(y>maxY, do: y, else: maxY)
+    {minX, minY, maxX, maxY}
+  end)
+
+boxX = -1 + (1.1*minX)
+boxY = -1 + (1.1*minY)
+boxW = 2 + (1.2*(maxX-minX))
+boxH = 2 + (1.2*(maxY-minY))
+
+maxSize = 1024
+
+{width, height} = if(boxW>boxH, do: {maxSize, maxSize*(boxH/boxW)}, else: {maxSize*(boxW/boxH), maxSize})
+%>
+<svg width="<%= width %>" height="<%= height %>" viewBox="<%= "#{boxX} #{boxY} #{boxW} #{boxH}" %>"><%= for {_id, entity} <- @blueprint_entities, pos = entity.position do %>
+  <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(entity.name) %>.png" x="<%= pos.x - 0.5 %>" y="<%= pos.y - 0.5 %>" height="1px" width="1px"/><% end %>
+<%= for %{from_entity_id: from_entity_id, to_entity_id: to_entity_id, color: color, from_circuit_id: from_circuit_id, to_circuit_id: to_circuit_id} <- @blueprint_wires,
+    from_entity = @blueprint_entities[from_entity_id],
+    to_entity = @blueprint_entities[to_entity_id],
+    {cx, cy} = if(color === :red, do: {-0.05, -0.1}, else: {0.05, 0.1}),
+    {ofX, ofY} = if(from_circuit_id === 2, do: {cx-0.25, cy-0.1}, else: {cx+0.25, cy+0.1}),
+    {otX, otY} = if(to_circuit_id === 2, do: {cx-0.25, cy-0.1}, else: {cx+0.25, cy+0.1}),
+    %{x: x1, y: y1} = from_entity.position,
+    %{x: x2, y: y2} = to_entity.position do %>
+  <!-- <line x1="<%= x1+ofX %>" y1="<%= y1+ofY %>" x2="<%= x2+otX %>" y2="<%= y2+otY %>" stroke-width="0.1" stroke="<%= color %>" stroke-linecap="round" /> -->
+  <path d="M<%= x1+ofX %> <%= y1+ofY %> C<%= x1+ofX+0.15 %> <%= y1+ofY+0.25 %>, <%= x2+otX-0.15 %> <%= y2+otY+0.25 %>, <%= x2+otX %> <%= y2+otY %>" style="stroke:<%= color %>;stroke-width:0.1;fill:none;stroke-linecap:round;" /><% end %>
+<%#= for {_id, %{position: %{x: sX, y: sY}, connections: connections}=_entity} <- @blueprint_entities,
+    {_cID, connectionsIO} <- connections, #_ = IO.inspect({_entity.name, cID}),
+    # {iX, iY, isDark} = if(cID === :"1", do: {-0.035, -0.05, false}, else: {0.035, 0.05, true}),
+    {iX, iY, isDark} = {0, 0, false},
+    {color, circuits} <- connectionsIO,
+    %{entity_id: otherEntityID} = circuit <- circuits,
+    {iX, iY, drawnColor} = if(circuit[:circuit_id] === nil, do: {-0.15, -0.05, color}, else: {0.15, 0.05, color}), # "dark#{color}"}),
+    %{position: %{x: eX, y: eY}} = @blueprint_entities[otherEntityID], _ = IO.inspect({:DRAWING, _entity.name, drawnColor, otherEntityID}),
+    {cX, cY} = if(color === :red, do: {-0.1, -0.2}, else: {0.1, 0.2}),
+    {oX, oY} = {iX+cX, iY+cY} do %>
+  <!-- <line x1="<%#= sX+oX %>" y1="<%#= sY+oY %>" x2="<%#= eX+oX %>" y2="<%#= eY+oY %>" stroke-width="0.1" stroke="<%#= drawnColor %>" stroke-linecap="round" /><%# end %> -->
+  <!-- <circle cx="<%#= pos.x %>" cy="<%#= pos.y %>" r="0.5" stroke="green" stroke-width="0.25" fill="yellow" /><%# end %> -->
+</svg>
+
+<!-- <table style="width:100%;overflow:auto">
+  <tbody>
+    <tr>
+      <td>
+      </td>
+    </tr>
+  </tbody>
+</table> -->
+<% end %>
