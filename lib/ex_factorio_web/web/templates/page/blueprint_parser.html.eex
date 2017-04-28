@@ -51,7 +51,13 @@ maxSize = 1024
 {width, height} = if(boxW>boxH, do: {maxSize, maxSize*(boxH/boxW)}, else: {maxSize*(boxW/boxH), maxSize})
 %>
 <svg width="<%= width %>" height="<%= height %>" viewBox="<%= "#{boxX} #{boxY} #{boxW} #{boxH}" %>"><%= for {_id, entity} <- @blueprint_entities, pos = entity.position do %>
-  <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(entity.name) %>.png" x="<%= pos.x - 0.5 %>" y="<%= pos.y - 0.5 %>" height="1px" width="1px"/><% end %>
+  <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(entity.name) %>.png" x="<%= pos.x - 0.5 %>" y="<%= pos.y - 0.5 %>" height="1px" width="1px" /><%= for %{index: findex, name: fname} <- List.wrap(entity[:filters]), fcount = 1+length(List.wrap(entity[:filters])) do %>
+  <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(fname) %>.png" x="<%= pos.x - 0.6 + (0.15 * findex) %>" y="<%= pos.y - 0.6 %>" height="<%= 1/fcount %>px" width="<%= 1/fcount %>px" /><% end %><%= for control_behavior <- List.wrap(entity[:control_behavior]) do %><%= for %{signal: %{name: sname}, index: sindex, count: scount} <- List.wrap(control_behavior[:filters]), fcount = 1+length(List.wrap(control_behavior[:filters])) do %>
+  <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(sname) %>.png" x="<%= pos.x - 0.6 + (0.15 * sindex) %>" y="<%= pos.y - 0.6 + 0.75 %>" height="<%= 1/fcount %>px" width="<%= 1/fcount %>px" /><% end %><%= for %{output_signal: %{name: out}, operation: op, first_signal: in0}=arith <- List.wrap(control_behavior[:arithmetic_conditions]), in1 = List.wrap(arith[:second_signal]) do %>
+    <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(out) %>.png" x="<%= pos.x + 0.125 %>" y="<%= pos.y - 0.125 %>" height="0.25px" width="0.25px" />
+    <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(op) %>.png" x="<%= pos.x - 0.125 %>" y="<%= pos.y - 0.125 %>" height="0.25px" width="0.25px" />
+    <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(in0.name) %>.png" x="<%= pos.x - 0.5 %>" y="<%= pos.y - 0.125 %>" height="0.25px" width="0.25px" /><%= if is_map(in1) do %>
+    <image xlink:href="https://wiki.factorio.com/images/<%= String.capitalize(in1.name) %>.png" x="<%= pos.x - 0.35 %>" y="<%= pos.y - 0.125 %>" height="0.25px" width="0.25px" /><% end %><% end %><% end %><% end %>
 <%= for %{from_entity_id: from_entity_id, to_entity_id: to_entity_id, color: color, from_circuit_id: from_circuit_id, to_circuit_id: to_circuit_id} <- @blueprint_wires,
     from_entity = @blueprint_entities[from_entity_id],
     to_entity = @blueprint_entities[to_entity_id],
@@ -60,28 +66,7 @@ maxSize = 1024
     {otX, otY} = if(to_circuit_id === 2, do: {cx-0.25, cy-0.1}, else: {cx+0.25, cy+0.1}),
     %{x: x1, y: y1} = from_entity.position,
     %{x: x2, y: y2} = to_entity.position do %>
-  <!-- <line x1="<%= x1+ofX %>" y1="<%= y1+ofY %>" x2="<%= x2+otX %>" y2="<%= y2+otY %>" stroke-width="0.1" stroke="<%= color %>" stroke-linecap="round" /> -->
   <path d="M<%= x1+ofX %> <%= y1+ofY %> C<%= x1+ofX+0.15 %> <%= y1+ofY+0.25 %>, <%= x2+otX-0.15 %> <%= y2+otY+0.25 %>, <%= x2+otX %> <%= y2+otY %>" style="stroke:<%= color %>;stroke-width:0.1;fill:none;stroke-linecap:round;" /><% end %>
-<%#= for {_id, %{position: %{x: sX, y: sY}, connections: connections}=_entity} <- @blueprint_entities,
-    {_cID, connectionsIO} <- connections, #_ = IO.inspect({_entity.name, cID}),
-    # {iX, iY, isDark} = if(cID === :"1", do: {-0.035, -0.05, false}, else: {0.035, 0.05, true}),
-    {iX, iY, isDark} = {0, 0, false},
-    {color, circuits} <- connectionsIO,
-    %{entity_id: otherEntityID} = circuit <- circuits,
-    {iX, iY, drawnColor} = if(circuit[:circuit_id] === nil, do: {-0.15, -0.05, color}, else: {0.15, 0.05, color}), # "dark#{color}"}),
-    %{position: %{x: eX, y: eY}} = @blueprint_entities[otherEntityID], _ = IO.inspect({:DRAWING, _entity.name, drawnColor, otherEntityID}),
-    {cX, cY} = if(color === :red, do: {-0.1, -0.2}, else: {0.1, 0.2}),
-    {oX, oY} = {iX+cX, iY+cY} do %>
-  <!-- <line x1="<%#= sX+oX %>" y1="<%#= sY+oY %>" x2="<%#= eX+oX %>" y2="<%#= eY+oY %>" stroke-width="0.1" stroke="<%#= drawnColor %>" stroke-linecap="round" /><%# end %> -->
-  <!-- <circle cx="<%#= pos.x %>" cy="<%#= pos.y %>" r="0.5" stroke="green" stroke-width="0.25" fill="yellow" /><%# end %> -->
 </svg>
 
-<!-- <table style="width:100%;overflow:auto">
-  <tbody>
-    <tr>
-      <td>
-      </td>
-    </tr>
-  </tbody>
-</table> -->
 <% end %>

@@ -35,6 +35,16 @@ defmodule ExFactorioWeb.Web.PageController do
       end)
       |> Enum.into(%{})
 
+    blueprint_overlays =
+      blueprint_entities
+      |> Enum.map(fn
+        {entity_id_base, %{filters: filters}} -> Enum.map(filters, fn %{index: index, name: name} ->
+          {index, name}
+        end) |> Enum.into(%{})
+        _ -> []
+      end)
+      |> List.flatten()
+
     blueprint_wires =
       blueprint_entities
       |> Enum.map(fn
@@ -68,21 +78,15 @@ defmodule ExFactorioWeb.Web.PageController do
       end)
       |> List.flatten()
       |> Enum.uniq()
-      # |> Enum.map(&IO.inspect/1) |> throw
-      # |> Enum.reduce([], fn(%{connections: connections}, wires) ->
-      #   # throw connections
-      #   Enum.map(connections, fn({id, wires}) ->
-      #     %{id: id, wires: wires}
-      #   end) ++ wires
-      #   # wire = %{x1: x1, y1: y1, x2: x2, y2: y2, color: color, startOuput: startOuput, endOutput: endOutput}
-      #   # wire = nil
-      #   # [wire | wires]
-      # (_, wires) -> wires
-      # end)
-      # |> Enum.map(&IO.inspect/1)
-      # |> throw
 
-    render(conn, :blueprint_parser, blueprint_string: blueprint_string, blueprint_data: blueprint_data, blueprint_icons: blueprint_icons, blueprint_entities: blueprint_entities, blueprint_wires: blueprint_wires)
+    render(conn, :blueprint_parser,
+      blueprint_string: blueprint_string,
+      blueprint_data: blueprint_data,
+      blueprint_icons: blueprint_icons,
+      blueprint_entities: blueprint_entities,
+      blueprint_overlays: blueprint_overlays,
+      blueprint_wires: blueprint_wires,
+      )
   end
 
   def blueprint_parser(conn, params) do
