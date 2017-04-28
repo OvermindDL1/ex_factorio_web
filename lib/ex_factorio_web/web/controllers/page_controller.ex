@@ -12,81 +12,80 @@ defmodule ExFactorioWeb.Web.PageController do
   end
 
   def blueprint_parser(conn, %{"blueprint-string" => blueprint_string} = _params) do
-    blueprint_data =
-      ExFactorioApi.Blueprint.string_to_data(blueprint_string)
+    try do
+      if byte_size(blueprint_string) > 1000000, do: throw "Blueprint string size is not supported, choose a smaller one for now"
+      blueprint_data =
+        ExFactorioApi.Blueprint.string_to_data(blueprint_string)
 
-    blueprint_icons =
-      blueprint_data.blueprint.icons
-      |> Enum.map(&{&1.index, &1.signal.name})
-      |> Enum.into(%{})
+      blueprint_icons =
+        blueprint_data.blueprint.icons
+        |> Enum.map(fn
+          %{index: index, signal: %{name: name}} -> {index, name}
+          %{index: index, name: name} -> {index, name}
+        end)
+        |> Enum.into(%{})
 
-    blueprint_entities =
-      blueprint_data.blueprint.entities
-      |> Enum.map(fn
-        %{connections: _} = entity -> entity
-        entity -> Map.put_new(entity, :connections, %{})
-      end)
-      |> Enum.map(fn(entity) ->
-        entity =
-          %{entity |
-            connections: Enum.map(entity.connections, fn {aid, conns} -> {aid|>to_string()|>String.to_integer(), conns} end) |> Enum.into(%{})
-          }
-        {entity.entity_number, entity}
-      end)
-      |> Enum.into(%{})
+      blueprint_entities =
+        blueprint_data.blueprint.entities
+        |> Enum.map(fn
+          %{connections: _} = entity -> entity
+          entity -> Map.put_new(entity, :connections, %{})
+        end)
+        |> Enum.map(fn(entity) ->
+          entity =
+            %{entity |
+              connections: Enum.map(entity.connections, fn {aid, conns} -> {aid|>to_string()|>String.to_integer(), conns} end) |> Enum.into(%{})
+            }
+          {entity.entity_number, entity}
+        end)
+        |> Enum.into(%{})
 
-    blueprint_overlays =
-      blueprint_entities
-      |> Enum.map(fn
-        {entity_id_base, %{filters: filters}} -> Enum.map(filters, fn %{index: index, name: name} ->
-          {index, name}
-        end) |> Enum.into(%{})
-        _ -> []
-      end)
-      |> List.flatten()
-
-    blueprint_wires =
-      blueprint_entities
-      |> Enum.map(fn
-        {entity_id_base, %{connections: connections}} ->
-          Enum.map(connections, fn({circuit_id_base, colors}) ->
-            Enum.map(colors, fn
-              {color, wires} ->
-                wires
-                |> Enum.map(fn
-                  %{circuit_id: _} = wire -> wire
-                  wire -> Map.put_new(wire, :circuit_id, 1)
-                end)
-                |> Enum.map(fn(%{circuit_id: circuit_id, entity_id: entity_id}) ->
-                  {from_entity_id, to_entity_id, from_circuit_id, to_circuit_id} =
-                    if entity_id < entity_id_base do
-                      {entity_id, entity_id_base, circuit_id, circuit_id_base}
-                    else
-                      {entity_id_base, entity_id, circuit_id_base, circuit_id}
-                    end
-                  %{
-                    from_entity_id: from_entity_id,
-                    to_entity_id: to_entity_id,
-                    color: color,
-                    from_circuit_id: from_circuit_id,
-                    to_circuit_id: to_circuit_id,
-                  }
-                end)
+      blueprint_wires =
+        blueprint_entities
+        |> Enum.map(fn
+          {entity_id_base, %{connections: connections}} ->
+            Enum.map(connections, fn({circuit_id_base, colors}) ->
+              Enum.map(colors, fn
+                {color, wires} ->
+                  wires
+                  |> Enum.map(fn
+                    %{circuit_id: _} = wire -> wire
+                    wire -> Map.put_new(wire, :circuit_id, 1)
+                  end)
+                  |> Enum.map(fn(%{circuit_id: circuit_id, entity_id: entity_id}) ->
+                    {from_entity_id, to_entity_id, from_circuit_id, to_circuit_id} =
+                      if entity_id < entity_id_base do
+                        {entity_id, entity_id_base, circuit_id, circuit_id_base}
+                      else
+                        {entity_id_base, entity_id, circuit_id_base, circuit_id}
+                      end
+                    %{
+                      from_entity_id: from_entity_id,
+                      to_entity_id: to_entity_id,
+                      color: color,
+                      from_circuit_id: from_circuit_id,
+                      to_circuit_id: to_circuit_id,
+                    }
+                  end)
+              end)
             end)
-          end)
-        _ -> []
-      end)
-      |> List.flatten()
-      |> Enum.uniq()
+          _ -> []
+        end)
+        |> List.flatten()
+        |> Enum.uniq()
 
-    render(conn, :blueprint_parser,
-      blueprint_string: blueprint_string,
-      blueprint_data: blueprint_data,
-      blueprint_icons: blueprint_icons,
-      blueprint_entities: blueprint_entities,
-      blueprint_overlays: blueprint_overlays,
-      blueprint_wires: blueprint_wires,
-      )
+      render(conn, :blueprint_parser,
+        blueprint_string: blueprint_string,
+        blueprint_data: blueprint_data,
+        blueprint_icons: blueprint_icons,
+        blueprint_entities: blueprint_entities,
+        blueprint_wires: blueprint_wires,
+        )
+      rescue
+        exc -> render(conn, :blueprint_parser, blueprint_string: Exception.message(exc), blueprint_data: nil, blueprint_icons: nil, blueprint_entities: nil, blueprint_wires: nil)
+      catch
+        error -> render(conn, :blueprint_parser, blueprint_string: inspect(error), blueprint_data: nil, blueprint_icons: nil, blueprint_entities: nil, blueprint_wires: nil)
+      end
   end
 
   def blueprint_parser(conn, params) do
